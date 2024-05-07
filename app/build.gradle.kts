@@ -7,6 +7,7 @@ android {
     namespace = "com.example.genie"
     compileSdk = 34
 
+
     defaultConfig {
         applicationId = "com.example.genie"
         minSdk = 28
@@ -32,6 +33,10 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+    }
+
+    buildFeatures {
+        viewBinding = true
     }
 }
 
