@@ -1,100 +1,108 @@
 package com.example.genie
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import android.graphics.SurfaceTexture
-import android.hardware.camera2.CameraCaptureSession
-import android.hardware.camera2.CameraDevice
-import android.hardware.camera2.CameraManager
-import android.hardware.camera2.CaptureRequest
 import android.os.Bundle
-import android.os.Environment
-import android.util.Size
-import android.view.Surface
-import android.view.TextureView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
+import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import com.example.genie.databinding.ActivityCameraBinding
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
+import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class CameraActivity : AppCompatActivity() {
-    private lateinit var textureView: TextureView
-    private var cameraDevice: CameraDevice? = null
+    private lateinit var binding: ActivityCameraBinding
+    private var imageCapture: ImageCapture? = null
+    private lateinit var cameraExecutor: ExecutorService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        textureView = TextureView(this).apply {
-            surfaceTextureListener = textureListener
-        }
-        setContentView(textureView)
-        checkPermissions()
+        binding = ActivityCameraBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        startCamera()
+        binding.btnCapture.setOnClickListener { takePhoto() }
+        cameraExecutor = Executors.newSingleThreadExecutor()
     }
 
-    private val textureListener = object : TextureView.SurfaceTextureListener {
-        override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-            openCamera()
-        }
+    private fun startCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture.addListener({
+            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+            val preview = Preview.Builder()
+                .build()
+                .also {
+                    it.setSurfaceProvider(binding.viewFinder.surfaceProvider)
+                }
 
-        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
+            imageCapture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .build()
 
-        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = true
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
-    }
-
-    private fun openCamera() {
-        val cameraManager: CameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        try {
-            val cameraId = cameraManager.cameraIdList[0]
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                return
+            try {
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(
+                    this, cameraSelector, preview, imageCapture
+                )
+            } catch (exc: Exception) {
+                Toast.makeText(this, "Failed to start camera", Toast.LENGTH_SHORT).show()
             }
-            cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
-                override fun onOpened(camera: CameraDevice) {
-                    cameraDevice = camera
-                    startPreview()
-                }
-
-                override fun onDisconnected(camera: CameraDevice) {
-                    cameraDevice?.close()
-                }
-
-                override fun onError(camera: CameraDevice, error: Int) {
-                    cameraDevice?.close()
-                    cameraDevice = null
-                }
-            }, null)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun startPreview() {
-        val surfaceTexture = textureView.surfaceTexture!!
-        surfaceTexture.setDefaultBufferSize(1920, 1080)
-        val surface = Surface(surfaceTexture)
-        try {
-            val previewRequestBuilder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-            previewRequestBuilder.addTarget(surface)
-            cameraDevice?.createCaptureSession(Collections.singletonList(surface), object : CameraCaptureSession.StateCallback() {
-                override fun onConfigured(session: CameraCaptureSession) {
-                    session.setRepeatingRequest(previewRequestBuilder.build(), null, null)
+    private fun takePhoto() {
+        val imageCapture = imageCapture ?: return
+
+        val photoFile = File(
+            outputDirectory,
+            SimpleDateFormat(FILENAME_FORMAT, Locale.US)
+                .format(System.currentTimeMillis()) + ".jpg"
+        )
+
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+        imageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    Toast.makeText(
+                        baseContext,
+                        "Photo saved successfully: ${photoFile.absolutePath}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
 
-                override fun onConfigureFailed(session: CameraCaptureSession) {}
-            }, null)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+                override fun onError(exc: ImageCaptureException) {
+                    Toast.makeText(
+                        baseContext,
+                        "Photo capture failed: ${exc.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        )
     }
 
-    private fun checkPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE), 0)
+    private val outputDirectory: File by lazy {
+        val mediaDir = externalMediaDirs.firstOrNull()?.let {
+            File(it, resources.getString(R.string.app_name)).apply { mkdirs() }
         }
+        if (mediaDir != null && mediaDir.exists())
+            mediaDir else filesDir
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cameraExecutor.shutdown()
+    }
+
+    companion object {
+        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
     }
 }
