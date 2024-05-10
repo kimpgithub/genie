@@ -10,12 +10,12 @@
     - 이미지 업로드: 캡처된 이미지를 Flask 서버로 자동 업로드합니다.
   
 - 사용 기술
-    Android Studio: 앱 개발 및 디자인을 위한 통합 개발 환경(IDE).
-    Kotlin: 앱 로직 및 UI 인터렉션을 구현하는데 사용된 프로그래밍 언어.
-    CameraX: 안드로이드 Jetpack의 일부로, 카메라 앱 개발을 보다 쉽게 해주는 라이브러리.
-    Retrofit: HTTP API를 자바 인터페이스로 변환하는 타입-세이프한 HTTP 클라이언트.
-    OkHttp: HTTP 및 HTTP/2 클라이언트.
-    Gson: 자바 객체를 JSON 표현식으로 변환하는 라이브러리.
+    - Android Studio: 앱 개발 및 디자인을 위한 통합 개발 환경(IDE).
+    - Kotlin: 앱 로직 및 UI 인터렉션을 구현하는데 사용된 프로그래밍 언어.
+    - CameraX: 안드로이드 Jetpack의 일부로, 카메라 앱 개발을 보다 쉽게 해주는 라이브러리.
+    - Retrofit: HTTP API를 자바 인터페이스로 변환하는 타입-세이프한 HTTP 클라이언트.
+    - OkHttp: HTTP 및 HTTP/2 클라이언트.
+    - Gson: 자바 객체를 JSON 표현식으로 변환하는 라이브러리.
   
 - 설치 방법
     1. 이 리포지토리를 클론합니다:
