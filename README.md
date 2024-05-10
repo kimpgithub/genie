@@ -18,8 +18,7 @@
     - Gson: 자바 객체를 JSON 표현식으로 변환하는 라이브러리.
   
 - 설치 방법
-    1. 이 리포지토리를 클론합니다:
-        git clone https://github.com/yourusername/android-camera-app-demo.git
+    1. 이 리포지토리를 클론합니다: git clone https://github.com/kimpgithub/genie.git
     2. Android Studio에서 클론된 프로젝트를 엽니다.
     3. Build > Rebuild Project를 선택하여 프로젝트를 빌드합니다.
     4. 에뮬레이터를 실행하거나 안드로이드 기기에 앱을 설치하여 테스트합니다.
