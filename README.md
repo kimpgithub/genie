@@ -31,7 +31,7 @@
     - build.gradle: 프로젝트와 앱 모듈의 빌드 설정을 정의합니다.
  
 - MainActivity.kt 다이어그램
-  ![MainActivity_DG](https://github.com/kimpgithub/genie/assets/114399262/9fa14e5c-5998-4bdf-b930-be384e88f8a7)
+  ![MainActivity_DG](https://github.com/kimpgithub/genie/assets/114399262/33d7d615-bcd6-46b8-9663-dc6752577cb1)
 
 - CameraActivity.kt 다이어그램
   ![CameraActivity_DG](https://github.com/kimpgithub/genie/assets/114399262/8b7c17cb-efb4-4589-84cc-913173477c90)
