@@ -1,6 +1,7 @@
 package com.example.genie
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -36,7 +37,16 @@ import kotlin.math.min
 import android.graphics.Paint
 import android.graphics.Canvas
 import android.graphics.Color
-
+import android.graphics.Matrix
+import androidx.appcompat.app.AlertDialog
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.google.gson.JsonSyntaxException
+import okio.IOException
+import org.json.JSONException
+import org.json.JSONObject
+import java.io.File
 class CameraActivity : AppCompatActivity() {
     private lateinit var binding: ConstraintLayout
     private var imageCapture: ImageCapture? = null
@@ -44,9 +54,9 @@ class CameraActivity : AppCompatActivity() {
 
     private val retrofitClient: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl("http://3.27.46.26:8080/")
+            .baseUrl("http://54.206.68.169:8080/")
             .addConverterFactory(GsonConverterFactory.create())
-            .client(OkHttpClient.Builder().build())
+                .client(OkHttpClient.Builder().build())
             .build()
     }
 
@@ -77,6 +87,7 @@ class CameraActivity : AppCompatActivity() {
         val btnCapture = Button(this)
         btnCapture.text = "Capture"
         btnCapture.setOnClickListener { takePhoto() }
+
 
         val layoutParams = ConstraintLayout.LayoutParams(
             ConstraintLayout.LayoutParams.WRAP_CONTENT,
@@ -129,9 +140,9 @@ class CameraActivity : AppCompatActivity() {
             previewView.viewTreeObserver.addOnGlobalLayoutListener {
                 Log.d("CameraActivity", "ViewTreeObserver 콜백 호출됨")
 
-                // 고정 ROI 영역 설정 (5cm x 2cm 크기로 가정)
+                // 고정 ROI 영역 설정
                 val roiWidth = previewView.width / 2
-                val roiHeight = previewView.height / 5
+                val roiHeight = previewView.height / 10
                 val centerX = previewView.width / 2
                 val centerY = previewView.height / 2
                 val left = centerX - roiWidth / 2
@@ -140,32 +151,53 @@ class CameraActivity : AppCompatActivity() {
                 val bottom = centerY + roiHeight / 2
 
                 overlayView.setROIRect(left, top, right, bottom)
+
             }
             binding.addView(previewView) // 프리뷰를 ConstraintLayout에 추
             binding.addView(overlayView)
         }, ContextCompat.getMainExecutor(this))
     }
+
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
-        imageCapture.takePicture(ContextCompat.getMainExecutor(this), object : ImageCapture.OnImageCapturedCallback() {
-            override fun onCaptureSuccess(image: ImageProxy) {
-                Log.d("CameraActivity", "onCaptureSuccess() called on thread: ${Thread.currentThread().name}")
-                val buffer = image.planes[0].buffer
-                val data = ByteArray(buffer.remaining())
-                buffer.get(data)
-                image.close()
-                processCapturedImage(data)
-            }
+        imageCapture.takePicture(
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageCapturedCallback() {
+                override fun onCaptureSuccess(image: ImageProxy) {
+                    Log.d(
+                        "CameraActivity",
+                        "onCaptureSuccess() called on thread: ${Thread.currentThread().name}"
+                    )
+                    val buffer = image.planes[0].buffer
+                    val data = ByteArray(buffer.remaining())
+                    buffer.get(data)
+                    image.close()
+                    processCapturedImage(data)
+                }
 
-            override fun onError(exc: ImageCaptureException) {
-                showToast("Photo capture failed: ${exc.message}")
-            }
-        })
+                override fun onError(exc: ImageCaptureException) {
+                    showToast("Photo capture failed: ${exc.message}")
+                }
+            })
     }
 
     private fun processCapturedImage(imageData: ByteArray) {
         // Convert data to Bitmap
-        val capturedImage = BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+        var capturedImage = BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+
+        // Rotate the image by 90 degrees
+        val matrix = Matrix()
+        matrix.postRotate(90f)
+        capturedImage = Bitmap.createBitmap(
+            capturedImage,
+            0,
+            0,
+            capturedImage.width,
+            capturedImage.height,
+            matrix,
+            true
+        )
+
 
         // Extract ROI from capturedImage (same logic as getROIImage)
         val roiBitmap = getROIImage(capturedImage)
@@ -186,9 +218,9 @@ class CameraActivity : AppCompatActivity() {
         val width = image.width
         val height = image.height
 
-        // Calculate the size of the ROI rectangle (e.g., 5cm x 2cm size)
-        val roiWidth = width / 2 // 예시로 5cm
-        val roiHeight = height / 5 // 예시로 2cm
+        // Calculate the size of the ROI rectangle
+        val roiWidth = width / 4
+        val roiHeight = height / 20
 
         // Calculate the center coordinates of the image
         val centerX = width / 2
@@ -207,22 +239,25 @@ class CameraActivity : AppCompatActivity() {
         val bottomPixel = min(bottom, height)
 
         // Create the ROI bitmap using the calculated coordinates
-        return Bitmap.createBitmap(image, leftPixel, topPixel, rightPixel - leftPixel, bottomPixel - topPixel)
+        return Bitmap.createBitmap(
+            image,
+            leftPixel,
+            topPixel,
+            rightPixel - leftPixel,
+            bottomPixel - topPixel
+        )
     }
 
     private fun uploadImage(imageBytes: ByteArray) {
         val requestFile = imageBytes.toRequestBody("image/jpg".toMediaTypeOrNull())
         val body = MultipartBody.Part.createFormData("image", "image.jpg", requestFile)
 
-        Log.d("CameraActivity", "uploadImage called")
-
         apiService.uploadImage(body).enqueue(object : Callback<Unit> {
             override fun onResponse(call: Call<Unit>, response: Response<Unit>) {
-                Log.d("CameraActivity", "onResponse called")
-
                 if (response.isSuccessful) {
                     Log.d("CameraActivity", "Image uploaded successfully")
                     showToast("Image uploaded successfully")
+                    startActivity(Intent(this@CameraActivity, KeywordsActivity::class.java))
                 } else {
                     val errorBody = response.errorBody()?.string()
                     val errorMessage = "Upload failed: " + (errorBody ?: "Unknown error")
@@ -246,9 +281,9 @@ class CameraActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        cameraExecutor.shutdown()
     }
 }
-
 class OverlayView(context: Context) : View(context) {
     private val paint = Paint().apply {
         color = Color.RED
@@ -265,7 +300,10 @@ class OverlayView(context: Context) : View(context) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
 
         // 디버그 포인트 추가
-        Log.d("OverlayView", "onMeasure() 호출됨: widthMeasureSpec=$widthMeasureSpec, heightMeasureSpec=$heightMeasureSpec")
+        Log.d(
+            "OverlayView",
+            "onMeasure() 호출됨: widthMeasureSpec=$widthMeasureSpec, heightMeasureSpec=$heightMeasureSpec"
+        )
     }
 
     fun setROIRect(left: Int, top: Int, right: Int, bottom: Int) {
