@@ -29,3 +29,11 @@
     - CameraActivity.kt: 카메라 인터페이스와 사진 캡처 기능을 구현합니다.
     - AndroidManifest.xml: 애플리케이션에 필요한 권한과 액티비티 설정을 정의합니다.
     - build.gradle: 프로젝트와 앱 모듈의 빌드 설정을 정의합니다.
+ 
+- MainActivity.kt 다이어그램
+  ![MainActivity_DG](https://github.com/kimpgithub/genie/assets/114399262/9fa14e5c-5998-4bdf-b930-be384e88f8a7)
+
+- CameraActivity.kt 다이어그램
+  ![CameraActivity_DG](https://github.com/kimpgithub/genie/assets/114399262/8b7c17cb-efb4-4589-84cc-913173477c90)
+
+
